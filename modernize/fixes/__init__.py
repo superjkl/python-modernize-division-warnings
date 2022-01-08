@@ -52,5 +52,7 @@ six_fix_names = {
 # Fixes that are opt-in only.
 opt_in_fix_names = {
     "modernize.fixes.fix_classic_division",
+    "modernize.fixes.fix_classic_division_warnings",
+    "modernize.fixes.fix_import_division_future",
     "modernize.fixes.fix_open",
 }
