@@ -54,3 +54,25 @@ Using this tool does not affect licensing of the modernized code.
 
 This library is a very thin wrapper around `fissix
 <https://github.com/jreese/fissix>`_, a fork of lib2to3.
+
+
+Fork Enhancements
+-----------------
+Same old library with the added fixers:
+
+* ``classic_division_warnings`` which ensures classic division warnings are issued non-native types (ie. numpy types). This is unlike the behavior of the interpreter option ``-Qwarnall`` `docs <https://www.python.org/dev/peps/pep-0238/#command-line-option>`_.
+* ``import_division_future`` which will add ``from __future__ import division`` to any files using division
+
+The warnings from ``classic_division_warnings`` are intended as an aid to determining which usages of division (``/``, ``/=``) should be changed to floor division (``//``, ``//=``) before running the fixer ``import_division_future``.
+
+For example if one sees:
+
+* only ``classic int division`` warnings for an instance of division then it should be changed from ``/`` to ``//``
+* both ``classic int division`` and ``classic float division`` warnings for an instance of division then one must carefully consider the changes to the behavior of division once ``import_division_future`` is used
+
+Disclaimer: the warnings are useful only if you have good test coverage. If you have poor test coverage you may not find that an instance of division is actually used with both ``float`` and ``int`` types and thus should not be changed from ``/`` to ``//``.
+
+Tips: 
+
+* capture warnings into your logs with ``logging.captureWarnings(True)`` `docs <https://docs.python.org/2.7/library/logging.html#integration-with-the-warnings-module>`_
+* make sure there is no warning suppression by setting the environment variable ``PYTHONWARNINGS=default`` `docs <https://docs.python.org/3/using/cmdline.html#envvar-PYTHONWARNINGS>`_
