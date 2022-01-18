@@ -4,20 +4,26 @@ from fissix import fixer_base, pytree
 from fissix.pgen2 import token
 from fissix.fixer_util import Name, Call, Comma, Node
 
-import libmodernize
-
+from fissix import fixer_util
 from fissix.pygram import python_symbols as syms
 
-add_lib = "divisionwarnings"
-wrap_div = "warn_div123456"
-wrap_div_assign = "warn_div_assign123456"
+add_lib = "modernize.old_division_utils"
+wrap_div = "warn_div"
+wrap_div_assign = "warn_div_assign"
 
-class FixClassicDivisionWarning(fixer_base.BaseFix):
+class FixClassicDivisionWarnings(fixer_base.BaseFix):
 
     PATTERN = """
-    term< any (('*'|'@'|'/'|'%'|'//') any)+>
+    term<
+        factor=any
+        (('*'|'@'|'/'|'%'|'//') any)+
+    >
     |
-    expr_stmt< arg1=any '/=' arg2=any >
+    expr_stmt<
+        target=any
+        '/='
+        value=any
+    >
     """
 
     def start_tree(self, tree, name):
@@ -51,16 +57,23 @@ class FixClassicDivisionWarning(fixer_base.BaseFix):
         if self.skip:
             return
 
-        if any(child.value == '/' for child in node.children if hasattr(child, 'value')):
-            # expr1 "/" expr2 => wrap_div(expr1, expr2)
-            libmodernize.touch_import(add_lib, wrap_div, node)
-            return self.term_to_calls(node)
-        elif node.children[1].value == "/=" and wrap_div_assign not in str(results['arg2']):
-            # target /= expr => target /= wrap_div_assign(target, expr)
-            libmodernize.touch_import(add_lib, wrap_div_assign, node)
-            arg1 = results['arg1']
-            arg2 = results['arg2']
-            node.set_child(2,Call(Name(wrap_div_assign), [arg1.clone(), Comma(), arg2.clone()], arg2.prefix))
-            return node
+        if 'factor' in results:
+            if any(child.value == '/' for child in node.children if hasattr(child, 'value')):
+                # expr1 "/" expr2 ... => wrap_div(expr1, expr2) ...
+                fixer_util.touch_import(add_lib, wrap_div, node)
+                return self.term_to_calls(node)
+            else:
+                return
+
+        elif 'target' in results:
+            if wrap_div_assign not in str(results['value']):
+                # target /= expr => target /= wrap_div_assign(target, expr)
+                fixer_util.touch_import(add_lib, wrap_div_assign, node)
+                args = [results['target'].clone(), Comma(), results['value'].clone()]
+                node.set_child(2,Call(Name(wrap_div_assign), args, results['value'].prefix))
+                return node
+            else:
+                return
+
         else:
             raise Exception("No transformation was applied to file when it should have.")
